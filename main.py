@@ -6,6 +6,9 @@ from google.cloud import storage
 import argparse
 import pandas_market_calendars as mcal
 
+# Set Google Application Credentials
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/genevievenantel/Downloads/peppy-web-437616-r6-ec3f12e7c15e.json'
+
 # Initialize logging
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(levelname)s - %(message)s")
@@ -62,6 +65,7 @@ def upload_to_gcs(bucket_name, file_path, file_name):
 
 # Main logic to handle data download and storage
 def download_and_store_data(tickers, days, local, bucket_name, output_dir):
+    # assumption made: that "Days" starts as of current today
     today = pd.Timestamp.today().normalize()
     start_date = (today - pd.DateOffset(days=days)).normalize()
 
@@ -87,8 +91,19 @@ def download_and_store_data(tickers, days, local, bucket_name, output_dir):
                     logging.info(f"Data for {single_date.date()} already exists in GCS. Skipping.")
                     continue
 
-            # Download data for the current day
-            data = download_data(tickers, single_date)
+            try:
+                logging.info(f"Attempting to download data for tickers: {tickers} on date: {single_date}")
+                
+                # Download data for the current day
+                data = download_data(tickers, single_date)
+
+                if not data.empty:
+                    logging.info(f"Successfully downloaded data for {tickers} on {single_date}")
+                else:
+                    logging.warning(f"No data available for {tickers} on {single_date}")
+                    
+            except Exception as e:
+                logging.error(f"Failed to download data for {tickers} on {single_date} due to error: {e}")
 
             if not data.empty:
                 if local:
